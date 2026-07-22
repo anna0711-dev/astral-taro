@@ -1,13 +1,35 @@
 {
-  "background_color": "#4a0080",
-  "dir": "ltr",
-  "display": "standalone",
+  "id": "/astral-taro/",
   "name": "Астрал Таро",
-  "orientation": "any",
-  "scope": "/",
   "short_name": "Таро",
-  "start_url": "/",
+  "description": "AI Таро разчитане със 78 карти и Claude API",
+  "lang": "bg",
+  "dir": "ltr",
+  "start_url": "/astral-taro/",
+  "scope": "/astral-taro/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#4a0080",
   "theme_color": "#d4af37",
-  "id": "astraltaro",
-  "description": "AI Tarot Reading App with 78 cards and Claude API"
+  "categories": ["lifestyle", "entertainment"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
 }
