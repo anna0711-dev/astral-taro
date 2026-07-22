@@ -1,0 +1,13 @@
+{
+  "background_color": "#4a0080",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Астрал Таро",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "Таро",
+  "start_url": "/",
+  "theme_color": "#d4af37",
+  "id": "astraltaro",
+  "description": "AI Tarot Reading App with 78 cards and Claude API"
+}
