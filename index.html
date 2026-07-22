@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Астрал Таро — AI Гадател</title>
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #0d0714;
+            color: #e2d9f3;
+            overflow-x: hidden;
+        }
+        .font-cinzel { font-family: 'Cinzel', serif; }
+        .card-container { perspective: 1000px; }
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-style: preserve-3d;
+        }
+        .card-inner.flipped { transform: rotateY(180deg); }
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 12px;
+        }
+        .card-back { transform: rotateY(180deg); }
+        .gold-glow { box-shadow: 0 0 25px rgba(212, 175, 55, 0.25); }
+        .purple-glow { box-shadow: 0 0 35px rgba(139, 92, 246, 0.3); }
+        .gold-border { border: 1px solid rgba(212, 175, 55, 0.4); }
+        .gold-gradient-text {
+            background: linear-gradient(135deg, #fff2a3 0%, #d4af37 50%, #aa7c11 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.6s ease-out; }
+        .stars-bg {
+            background-image:
+                radial-gradient(2px 2px at 20px 30px, #e2d9f3, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 40px 70px, #ffffff, rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 90px 40px, #d4af37, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 160px 120px, #a855f7, rgba(0,0,0,0));
+            background-repeat: repeat;
+            background-size: 200px 200px;
+        }
+    </style>
+</head>
+<body class="stars-bg min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // === ПЪЛНО ТЕСТЕ: 78 карти (22 Голяма Аркана + 56 Малка Аркана) ===
+        const MAJOR_ARCANA = [
+            { name: "Глупакът", symbol: "✨", meaning: "Ново начало, спонтанност, вяра в съдбата, свободен дух." },
+            { name: "Магьосникът", symbol: "🪄", meaning: "Манифестация, находчивост, лична сила, действие." },
+            { name: "Висшата Жрица", symbol: "🌙", meaning: "Интуиция, тайни, подсъзнание, вътрешна мъдрост." },
+            { name: "Императрицата", symbol: "👑", meaning: "Изобилие, женска енергия, съзидателност, грижа." },
+            { name: "Императорът", symbol: "🏛️", meaning: "Авторитет, структура, стабилност, контрол, бащина фигура." },
+            { name: "Първосвещеникът", symbol: "⛪", meaning: "Традиция, духовно ръководство, ценности, учение." },
+            { name: "Влюбените", symbol: "💖", meaning: "Избор, любов, ценности, хармония, съюз." },
+            { name: "Колесницата", symbol: "🏇", meaning: "Воля, победа, контрол, напредък въпреки препятствията." },
+            { name: "Силата", symbol: "🦁", meaning: "Вътрешна сила, смелост, търпение, овладяване на страстите." },
+            { name: "Отшелникът", symbol: "🕯️", meaning: "Търсене на истината, самоанализ, вътрешна светлина, усамотение." },
+            { name: "Колелото на Съдбата", symbol: "🎡", meaning: "Промяна, късмет, циклична промяна, съдбоносен обрат." },
+            { name: "Справедливостта", symbol: "⚖️", meaning: "Истина, справедливост, причина и следствие, отговорност." },
+            { name: "Обесеният", symbol: "🙃", meaning: "Пауза, отдаване, нова гледна точка, доброволна жертва." },
+            { name: "Смъртта", symbol: "💀", meaning: "Край, трансформация, преход, ново начало след промяна." },
+            { name: "Умереността", symbol: "🕊️", meaning: "Баланс, търпение, умереност, хармонично смесване." },
+            { name: "Дяволът", symbol: "😈", meaning: "Обвързаност, изкушение, зависимости, материализъм, сенки." },
+            { name: "Кулата", symbol: "🗼", meaning: "Внезапна промяна, сътресение, разкритие, рухване на илюзии." },
+            { name: "Звездата", symbol: "⭐", meaning: "Надежда, вдъхновение, изцеление, духовен водач." },
+            { name: "Луната", symbol: "🌕", meaning: "Илюзия, страхове, подсъзнание, несигурност, интуиция." },
+            { name: "Слънцето", symbol: "☀️", meaning: "Радост, успех, жизненост, пълна яснота." },
+            { name: "Страшният съд", symbol: "🎺", meaning: "Пробуждане, преоценка, призвание, прошка, възраждане." },
+            { name: "Светът", symbol: "🌍", meaning: "Завършеност, постижение, цялост, изпълнение, край на цикъл." }
+        ];
+
+        const MAJOR_REVERSED = [
+            "Безразсъдство, колебание, страх от риск, наивност.",
+            "Манипулация, неизползван потенциал, измама, разпиляна енергия.",
+            "Пренебрегната интуиция, скрити мотиви, тайни излизат наяве.",
+            "Творчески застой, зависимост, пренебрегване на себе си, дисбаланс.",
+            "Тирания, ригидност, липса на контрол, злоупотреба с власт.",
+            "Бунт срещу нормите, догматизъм, свобода на мисълта, нови подходи.",
+            "Дисхармония, лош избор, ценностен конфликт, раздяла.",
+            "Липса на посока, загуба на контрол, агресия, поражение.",
+            "Съмнение в себе си, слабост, необуздани емоции, неувереност.",
+            "Изолация, самота, отдръпване, отказ от помощ.",
+            "Лош късмет, съпротива срещу промяната, забавяне, обрат към по-лошо.",
+            "Несправедливост, нечестност, избягване на отговорност, дисбаланс.",
+            "Застой, съпротива, безсмислена жертва, отлагане.",
+            "Съпротива срещу промяна, застой, страх от край, задържане на старото.",
+            "Дисбаланс, крайности, нетърпение, разлад.",
+            "Освобождаване, прекъсване на зависимост, възвръщане на контрол.",
+            "Избягана катастрофа, страх от промяна, отлагане на неизбежното.",
+            "Загуба на надежда, униние, разочарование, отчаяние.",
+            "Разсейване на страхове, разкрити истини, освобождаване от заблуда.",
+            "Временен облак, потиснат оптимизъм, забавен успех.",
+            "Самокритичност, съмнение, пренебрегнат зов, страх от промяна.",
+            "Незавършеност, липса на завършек, отлагане на целта."
+        ];
+
+        const RANKS = ["Асо", "Двойка", "Тройка", "Четворка", "Петорка", "Шесторка", "Седморка", "Осморка", "Деветка", "Десетка", "Паж", "Рицар", "Дама", "Крал"];
+
+        const SUITS = [
+            {
+                name: "Жезли", symbol: "🔥",
+                meanings: [
+                    "Вдъхновение, ново начинание, творческа искра, потенциал.",
+                    "Планиране, решения, лична сила, поглед към бъдещето.",
+                    "Разширяване, предвидливост, напредък, чакане на резултати.",
+                    "Празник, хармония в дома, стабилност, радостно събитие.",
+                    "Конфликт, съперничество, напрежение, борба.",
+                    "Победа, признание, успех, самоувереност.",
+                    "Защита на позицията, устойчивост, предизвикателство.",
+                    "Бързо движение, новини, действие, ускоряване на събитията.",
+                    "Устойчивост, упоритост, последно усилие, отбрана.",
+                    "Бреме, претоварване, отговорност, поемане на прекалено много.",
+                    "Ентусиазъм, откриване, свободен дух, нови идеи.",
+                    "Енергия, страст, действие, импулсивност, приключение.",
+                    "Увереност, харизма, независимост, топлина, воля.",
+                    "Лидерство, визия, предприемчивост, смелост."
+                ]
+            },
+            {
+                name: "Чаши", symbol: "💧",
+                meanings: [
+                    "Нова любов, емоционално начало, състрадание, изобилие от чувства.",
+                    "Партньорство, взаимно привличане, съюз, хармония.",
+                    "Приятелство, празник, общност, споделена радост.",
+                    "Апатия, съзерцание, пропуснати възможности, недоволство.",
+                    "Загуба, съжаление, скръб — но остава надежда.",
+                    "Носталгия, спомени, невинност, доброта от миналото.",
+                    "Избор, илюзии, мечти, фантазии, объркване.",
+                    "Оттегляне, търсене на по-дълбок смисъл, напускане.",
+                    "Удовлетворение, сбъднати желания, благополучие.",
+                    "Емоционална пълнота, хармония в семейството, щастие.",
+                    "Творческо послание, чувствителност, интуиция, нежност.",
+                    "Романтика, чар, следване на сърцето, предложение.",
+                    "Съчувствие, емоционална мъдрост, грижа, интуиция.",
+                    "Емоционален баланс, зрялост, състрадание, дипломатичност."
+                ]
+            },
+            {
+                name: "Мечове", symbol: "⚔️",
+                meanings: [
+                    "Яснота, пробив, истина, нова идея, острота на ума.",
+                    "Труден избор, застой, равновесие, избягване на решение.",
+                    "Сърдечна болка, скръб, раздяла, разочарование.",
+                    "Почивка, възстановяване, съзерцание, пауза.",
+                    "Конфликт, раздор, победа с цена, поражение.",
+                    "Преход, движение напред, оставяне на трудностите зад гърба.",
+                    "Хитрост, стратегия, действие в тайна, предпазливост.",
+                    "Ограничения, чувство за заклещеност, самоналожени окови.",
+                    "Тревога, безсъние, страхове, притеснения.",
+                    "Болезнен край, дъно — но и ново начало след него.",
+                    "Любопитство, бдителност, нови идеи, откровеност.",
+                    "Амбиция, бързина, решителност, директност.",
+                    "Яснота, независимост, честност, проницателност.",
+                    "Интелект, авторитет, истина, обективна преценка."
+                ]
+            },
+            {
+                name: "Пентакли", symbol: "🪙",
+                meanings: [
+                    "Нова възможност, просперитет, стабилно начало, изобилие.",
+                    "Баланс, приспособяване, жонглиране с приоритети.",
+                    "Сътрудничество, майсторство, екипна работа, умения.",
+                    "Сигурност, контрол, задържане — но и стиснатост.",
+                    "Затруднения, липса, несигурност — но помощ е наблизу.",
+                    "Щедрост, даване и получаване, споделяне, баланс.",
+                    "Търпение, инвестиция, изчакване на плодовете.",
+                    "Усърдие, майсторство, отдаденост на занаята.",
+                    "Независимост, изобилие, самодостатъчност, наслада.",
+                    "Богатство, наследство, семейна стабилност, дълготрайност.",
+                    "Учене, амбиция, нови възможности, практичност.",
+                    "Постоянство, надеждност, упорит труд, отговорност.",
+                    "Грижа, практичност, изобилие, заземеност.",
+                    "Просперитет, стабилност, успех, щедрост в изобилието."
+                ]
+            }
+        ];
+
+        const SUITS_REVERSED = {
+            "Жезли": [
+                "Забавяне, липса на посока, угаснала искра, отложен старт.",
+                "Страх от неизвестното, лошо планиране, нерешителност.",
+                "Забавяне, пречки, липса на предвидливост.",
+                "Нестабилност у дома, липса на хармония, отложено празненство.",
+                "Избягнат конфликт, вътрешно напрежение, край на съперничеството.",
+                "Липса на признание, провал, съмнение в себе си.",
+                "Отстъпване, изтощение, предаване на позицията.",
+                "Забавяне, застой, разпилани усилия.",
+                "Изтощение, упорство до крайност, отбрана без сили.",
+                "Освобождаване от бреме, делегиране, сваляне на товара.",
+                "Незрялост, лоши новини, нереализирани идеи.",
+                "Импулсивност, безразсъдство, забавяне, разочарование.",
+                "Ревност, несигурност, доминиране, изгубена увереност.",
+                "Авторитарност, прибързаност, нетолерантност."
+            ],
+            "Чаши": [
+                "Емоционална блокировка, потиснати чувства, изпразнена любов.",
+                "Дисбаланс във връзка, раздяла, недоразумение.",
+                "Прекомерност, клюки, изолация, тревога в компанията.",
+                "Пробуждане, нова мотивация, приемане на възможност.",
+                "Приемане, прошка, движение напред след загуба.",
+                "Заклещване в миналото, нереализъм, откъсване от спомени.",
+                "Яснота, вземане на решение, преодоляна илюзия.",
+                "Страх от промяна, застой, връщане назад.",
+                "Неудовлетвореност, повърхностност, недостиг въпреки притежаваното.",
+                "Разрив в семейството, дисхармония, изгубена връзка.",
+                "Емоционална незрялост, блокирано творчество, свръхчувствителност.",
+                "Разочарование, нереалистичност, изменчивост в чувствата.",
+                "Емоционална нестабилност, зависимост, изтощение от даване.",
+                "Емоционална студенина, потиснатост, манипулация."
+            ],
+            "Мечове": [
+                "Объркване, груба сила, липса на яснота, изкривена истина.",
+                "Нерешителност, разкрита истина, информационно претоварване.",
+                "Изцеление, отпускане на болката, прошка, възстановяване.",
+                "Изтощение, прегаряне, застой, нужда от почивка.",
+                "Помирение, край на конфликта, прошка.",
+                "Забавен преход, съпротива, задържане в трудността.",
+                "Разкрита измама, признание, връщане на откраднатото.",
+                "Освобождаване, ново прозрение, край на ограниченията.",
+                "Освобождаване от страховете, надежда, изразена тревога.",
+                "Възстановяване, край на тежък период, оцеляване.",
+                "Клюки, цинизъм, прибързани думи, разсеяност.",
+                "Прибързаност, агресия, безсмислена бързина.",
+                "Студенина, злоба, свръхкритичност, огорчение.",
+                "Злоупотреба с власт, манипулация, безмилостност."
+            ],
+            "Пентакли": [
+                "Пропусната възможност, лоша инвестиция, отложен просперитет.",
+                "Дисбаланс, финансов хаос, претоварване.",
+                "Липса на екипна работа, посредственост, разногласия.",
+                "Освобождаване, щедрост, отпускане на контрола.",
+                "Възстановяване, край на трудностите, намерена помощ.",
+                "Дългове, неравенство, користна щедрост.",
+                "Нетърпение, лоша инвестиция, липса на награда.",
+                "Немарливост, посредственост, липса на фокус.",
+                "Прекомерна зависимост, финансова несигурност, показност.",
+                "Финансова нестабилност, семейни спорове, изгубено наследство.",
+                "Разсеяност, липса на цели, отложени планове.",
+                "Застой, скука, мързел, инертност.",
+                "Пренебрегване на себе си, дисбаланс работа/дом, зависимост.",
+                "Алчност, материализъм, лошо управление, упоритост."
+            ]
+        };
+
+        const TAROT_CARDS = [];
+        (function buildDeck() {
+            let id = 1;
+            MAJOR_ARCANA.forEach((c, i) => {
+                TAROT_CARDS.push({
+                    id: id++, name: c.name, arcana: "Голяма Аркана", symbol: c.symbol,
+                    meaning: c.meaning, reversedMeaning: MAJOR_REVERSED[i]
+                });
+            });
+            SUITS.forEach(s => {
+                s.meanings.forEach((m, i) => {
+                    TAROT_CARDS.push({
+                        id: id++,
+                        name: `${RANKS[i]} ${s.name}`,
+                        arcana: `Малка Аркана · ${s.name}`,
+                        symbol: s.symbol,
+                        meaning: m,
+                        reversedMeaning: SUITS_REVERSED[s.name][i]
+                    });
+                });
+            });
+        })();
+
+        // ⚠️ PRODUCTION: Worker URL е вградена тук
+        const WORKER_URL = "https://astral-taro.astral-taro.workers.dev";
+
+        function TarotApp() {
+            const [credits, setCredits] = useState(3);
+            const [question, setQuestion] = useState("");
+            const [readingType, setReadingType] = useState("3_cards");
+            const [drawnCards, setDrawnCards] = useState([]);
+            const [isFlipped, setIsFlipped] = useState([false, false, false]);
+            const [loading, setLoading] = useState(false);
+            const [aiLoading, setAiLoading] = useState(false);
+            const [aiError, setAiError] = useState(null);
+            const [aiReading, setAiReading] = useState(null);
+            const [showPricingModal, setShowPricingModal] = useState(false);
+
+            const handleDrawCards = () => {
+                if (!question.trim()) {
+                    alert("Моля, въведете вашия въпрос към картите!");
+                    return;
+                }
+                if (credits <= 0) {
+                    setShowPricingModal(true);
+                    return;
+                }
+
+                setLoading(true);
+                setDrawnCards([]);
+                setIsFlipped([false, false, false]);
+                setAiReading(null);
+                setAiError(null);
+
+                setTimeout(() => {
+                    const count = readingType === "1_card" ? 1 : 3;
+                    const shuffled = [...TAROT_CARDS].sort(() => 0.5 - Math.random());
+                    const selected = shuffled.slice(0, count).map(card => ({
+                        ...card,
+                        reversed: Math.random() < 0.5
+                    }));
+
+                    setDrawnCards(selected);
+                    setCredits(prev => prev - 1);
+                    setLoading(false);
+
+                    selected.forEach((_, idx) => {
+                        setTimeout(() => {
+                            setIsFlipped(prev => {
+                                const next = [...prev];
+                                next[idx] = true;
+                                return next;
+                            });
+                        }, (idx + 1) * 600);
+                    });
+
+                    setTimeout(() => {
+                        generateAiResponse(selected, question, readingType);
+                    }, count * 600 + 400);
+                }, 1200);
+            };
+
+            const generateAiResponse = async (cards, userQ, type) => {
+                setAiLoading(true);
+                setAiError(null);
+
+                const positions = type === "1_card"
+                    ? ["Отговор"]
+                    : ["Минало (Основа)", "Настояще (Предизвикателство)", "Бъдеще (Резултат)"];
+
+                const nameWithOrient = (c) => c ? `${c.name}${c.reversed ? " (обърната)" : ""}` : "";
+
+                const cardList = cards.map((c, i) => {
+                    const orient = c.reversed ? "ОБЪРНАТА" : "изправена";
+                    const mean = c.reversed ? c.reversedMeaning : c.meaning;
+                    return `${i + 1}. Позиция „${positions[i]}" — Карта: ${c.name} (${c.arcana}) [${orient}]. Значение: ${mean}`;
+                }).join("\n");
+
+                try {
+                    const res = await fetch(WORKER_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ question: userQ, type, cards }),
+                    });
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    const data = await res.json();
+                    if (!data.reading) throw new Error("Няма разчитане");
+                    setAiReading(data.reading);
+                } catch (err) {
+                    console.error("AI грешка:", err);
+                    setAiError("Връзката с гадателя се разсея за момент. Опитайте отново — кредитът ви е върнат.");
+                    setCredits(prev => prev + 1);
+                } finally {
+                    setAiLoading(false);
+                }
+            };
+
+            const buyCredits = (amount) => {
+                // Demo: в реално приложение тук се стартира In-App Purchase
+                setCredits(prev => prev + amount);
+                setShowPricingModal(false);
+            };
+
+            return (
+                <div className="max-w-md mx-auto min-h-screen flex flex-col justify-between p-4 pb-12">
+                    <div>
+                        {/* Header */}
+                        <div className="flex justify-between items-center py-4 border-b border-purple-900/50 mb-6">
+                            <div className="flex items-center space-x-2">
+                                <i className="fa-solid fa-gem font-cinzel text-amber-400 text-2xl"></i>
+                                <h1 className="font-cinzel text-xl font-bold tracking-wider gold-gradient-text">
+                                    АСТРАЛ ТАРО
+                                </h1>
+                            </div>
+                            <button
+                                onClick={() => setShowPricingModal(true)}
+                                className="bg-purple-950/80 hover:bg-purple-900 gold-border px-3 py-1.5 rounded-full text-xs flex items-center space-x-1.5 transition"
+                            >
+                                <span className="text-amber-400 font-bold">€</span>
+                                <span className="text-purple-200">{credits} Кредита</span>
+                                <i className="fa-solid fa-plus text-amber-400 text-[10px] ml-1"></i>
+                            </button>
+                        </div>
+
+                        {/* Input & Options */}
+                        <div className="bg-purple-950/30 backdrop-blur-md p-5 rounded-2xl border border-purple-800/40 purple-glow mb-6">
+                            <label className="block text-xs font-semibold text-purple-300 uppercase tracking-widest mb-2">
+                                <i className="fa-solid fa-wand-magic-sparkles text-amber-400 mr-1"></i> Задайте вашия въпрос
+                            </label>
+                            <textarea
+                                value={question}
+                                onChange={(e) => setQuestion(e.target.value)}
+                                placeholder="Напр.: Какво предстои в кариерата ми през следващите месеци?"
+                                className="w-full bg-slate-950/70 border border-purple-900/80 rounded-xl p-3 text-sm text-purple-100 placeholder-purple-400/50 focus:outline-none focus:border-amber-400/80 transition resize-none h-20 mb-4"
+                            ></textarea>
+
+                            <div className="grid grid-cols-2 gap-2 mb-4">
+                                <button
+                                    onClick={() => setReadingType("1_card")}
+                                    className={`py-2 px-3 rounded-xl text-xs font-medium border transition ${
+                                        readingType === "1_card"
+                                            ? "bg-amber-400/15 border-amber-400 text-amber-300"
+                                            : "bg-purple-900/20 border-purple-800/40 text-purple-300 hover:bg-purple-900/40"
+                                    }`}
+                                >
+                                    <i className="fa-solid fa-square mr-1"></i> 1 Карта (Бърз съвет)
+                                </button>
+                                <button
+                                    onClick={() => setReadingType("3_cards")}
+                                    className={`py-2 px-3 rounded-xl text-xs font-medium border transition ${
+                                        readingType === "3_cards"
+                                            ? "bg-amber-400/15 border-amber-400 text-amber-300"
+                                            : "bg-purple-900/20 border-purple-800/40 text-purple-300 hover:bg-purple-900/40"
+                                    }`}
+                                >
+                                    <i className="fa-solid fa-table-cells-large mr-1"></i> 3 Карти (Подредба)
+                                </button>
+                            </div>
+
+                            <button
+                                onClick={handleDrawCards}
+                                disabled={loading || aiLoading}
+                                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-600 text-slate-950 font-bold font-cinzel tracking-wider text-sm shadow-lg hover:brightness-110 active:scale-[0.99] transition flex justify-center items-center space-x-2 disabled:opacity-60"
+                            >
+                                {loading ? (
+                                    <span><i className="fa-solid fa-circle-notch fa-spin mr-2"></i> Разбъркване...</span>
+                                ) : aiLoading ? (
+                                    <span><i className="fa-solid fa-circle-notch fa-spin mr-2"></i> Гадателят тълкува...</span>
+                                ) : (
+                                    <span><i className="fa-solid fa-wand-magic-sparkles mr-2"></i> ИЗТЕГЛИ КАРТИТЕ</span>
+                                )}
+                            </button>
+                        </div>
+
+                        {/* Cards Display */}
+                        {drawnCards.length > 0 && (
+                            <div className="mb-8">
+                                <h3 className="text-center font-cinzel text-xs text-amber-300/80 uppercase tracking-widest mb-4">
+                                    Вашите изтеглени карти
+                                </h3>
+                                <div className={`grid ${drawnCards.length === 1 ? 'grid-cols-1 max-w-[140px] mx-auto' : 'grid-cols-3'} gap-3`}>
+                                    {drawnCards.map((card, idx) => (
+                                        <div key={card.id} className="h-44 card-container">
+                                            <div className={`card-inner ${isFlipped[idx] ? 'flipped' : ''}`}>
+                                                <div className="card-front bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950 border-2 border-amber-400/60 flex flex-col justify-center items-center p-2 shadow-xl">
+                                                    <div className="w-full h-full border border-purple-500/30 rounded-lg flex flex-col justify-center items-center bg-purple-900/20">
+                                                        <i className="fa-solid fa-eye text-amber-400/70 text-xl mb-1 animate-pulse"></i>
+                                                        <span className="font-cinzel text-[10px] text-purple-300">ТАРО</span>
+                                                    </div>
+                                                </div>
+                                                <div className="card-back bg-gradient-to-b from-slate-900 to-purple-950 border-2 border-amber-400 p-2 flex flex-col justify-between items-center gold-glow">
+                                                    <div className="w-full flex justify-between items-center">
+                                                        <span className="text-xs text-amber-400/80 font-cinzel">
+                                                            {readingType === "3_cards" ? (idx === 0 ? "Минало" : idx === 1 ? "Настояще" : "Бъдеще") : "Отговор"}
+                                                        </span>
+                                                        {card.reversed && (
+                                                            <i className="fa-solid fa-arrows-rotate text-rose-400 text-[10px]" title="Обърната"></i>
+                                                        )}
+                                                    </div>
+                                                    <div className={`text-3xl my-1 transition-transform ${card.reversed ? 'rotate-180' : ''}`}>{card.symbol}</div>
+                                                    <div className="text-center">
+                                                        <h4 className="font-cinzel font-bold text-xs text-amber-200 leading-tight">{card.name}</h4>
+                                                        <p className="text-[9px] text-purple-300/70 mt-0.5">{card.arcana}</p>
+                                                        <span className={`inline-block mt-1 text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${card.reversed ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/15 text-emerald-300'}`}>
+                                                            {card.reversed ? 'Обърната' : 'Изправена'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* AI loading placeholder */}
+                        {aiLoading && (
+                            <div className="bg-purple-950/40 border border-purple-800/40 rounded-2xl p-6 text-center mb-8 animate-fade-in">
+                                <i className="fa-solid fa-hat-wizard text-amber-400 text-2xl mb-2 animate-pulse"></i>
+                                <p className="text-xs text-purple-200">Гадателят се вглежда в картите ви и подготвя разчитането...</p>
+                            </div>
+                        )}
+
+                        {/* AI error */}
+                        {aiError && !aiLoading && (
+                            <div className="bg-red-950/40 border border-red-500/40 rounded-2xl p-4 text-center mb-8 animate-fade-in">
+                                <p className="text-xs text-red-200 mb-3">{aiError}</p>
+                                <button
+                                    onClick={() => generateAiResponse(drawnCards, question, readingType)}
+                                    className="text-xs bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-lg"
+                                >
+                                    Опитай отново
+                                </button>
+                            </div>
+                        )}
+
+                        {/* AI Reading */}
+                        {aiReading && !aiLoading && (
+                            <div className="bg-gradient-to-b from-purple-950/60 to-slate-950/80 border border-amber-400/40 rounded-2xl p-5 gold-glow animate-fade-in mb-8">
+                                <div className="text-center border-b border-purple-800/50 pb-3 mb-4">
+                                    <span className="text-[10px] uppercase font-bold tracking-widest text-amber-400">AI Таро Разчитане</span>
+                                    <h2 className="font-cinzel text-lg font-bold text-amber-200 mt-0.5">{aiReading.title}</h2>
+                                </div>
+
+                                {aiReading.intro && (
+                                    <p className="text-xs text-purple-200 leading-relaxed italic mb-4">
+                                        "{aiReading.intro}"
+                                    </p>
+                                )}
+
+                                {aiReading.cardsDetail && (
+                                    <div className="space-y-3 mb-4">
+                                        {aiReading.cardsDetail.map((item, index) => (
+                                            <div key={index} className="bg-purple-900/30 p-2.5 rounded-lg border border-purple-800/40 text-xs">
+                                                <span className="font-semibold text-amber-300">{item.pos}: {item.name}</span>
+                                                <p className="text-purple-200/90 mt-1">{item.text}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {aiReading.synthesis && (
+                                    <div className="mb-4">
+                                        <h4 className="font-cinzel text-xs font-bold text-amber-300 uppercase mb-1">Синтез на Енергията</h4>
+                                        <p className="text-xs text-purple-100 leading-relaxed" dangerouslySetInnerHTML={{ __html: aiReading.synthesis.replace(/\*\*(.*?)\*\*/g, '<strong class="text-amber-200">$1</strong>') }}></p>
+                                    </div>
+                                )}
+
+                                {aiReading.advice && (
+                                    <div className="bg-amber-400/10 border-l-2 border-amber-400 p-3 rounded-r-lg">
+                                        <h4 className="font-cinzel text-xs font-bold text-amber-300 uppercase mb-0.5">Ключов Съвет</h4>
+                                        <p className="text-xs text-amber-100 italic">{aiReading.advice}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Footer / Disclaimer */}
+                    <div className="text-center mt-6 pt-4 border-t border-purple-950 text-[10px] text-purple-400/60">
+                        <p>Приложението и неговите генерирани отговори са предназначени единствено за развлекателни и информационни цели. Приложението не предоставя медицински, правни, финансови или психотерапевтични съвети.</p>
+                        <div className="mt-2 space-x-3">
+                            <a href="#" className="underline hover:text-amber-400/80">Политика за поверителност</a>
+                            <a href="#" className="underline hover:text-amber-400/80">Условия за ползване</a>
+                        </div>
+                    </div>
+
+                    {/* Pricing Modal */}
+                    {showPricingModal && (
+                        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-slate-900 border border-amber-400/50 rounded-2xl p-6 max-w-xs w-full purple-glow relative">
+                                <button
+                                    onClick={() => setShowPricingModal(false)}
+                                    className="absolute top-3 right-3 text-purple-400 hover:text-white text-lg"
+                                >
+                                    <i className="fa-solid fa-xmark"></i>
+                                </button>
+
+                                <div className="text-center mb-5">
+                                    <i className="fa-solid fa-wand-magic-sparkles text-amber-400 text-3xl mb-2"></i>
+                                    <h3 className="font-cinzel text-lg font-bold text-amber-200">Вземете Още Кредити</h3>
+                                    <p className="text-xs text-purple-300 mt-1">Отключете дълбоки AI Таро разчитания за въпросите си.</p>
+                                </div>
+
+                                <div className="space-y-3 mb-4">
+                                    <div className="bg-purple-950/60 border border-purple-800 p-3 rounded-xl flex justify-between items-center hover:border-amber-400 transition cursor-pointer" onClick={() => buyCredits(3)}>
+                                        <div>
+                                            <div className="text-xs font-bold text-purple-100">Пакет „Старт"</div>
+                                            <div className="text-[10px] text-purple-400">3 Гледания (Кредита)</div>
+                                        </div>
+                                        <div className="bg-amber-400 text-slate-950 text-xs font-bold px-3 py-1.5 rounded-lg">€0.99</div>
+                                    </div>
+
+                                    <div className="bg-purple-950/60 border-2 border-amber-400/80 p-3 rounded-xl flex justify-between items-center relative overflow-hidden cursor-pointer" onClick={() => buyCredits(10)}>
+                                        <div className="absolute top-0 right-0 bg-amber-400 text-slate-950 text-[8px] font-bold px-2 py-0.5 rounded-bl">ПОПУЛЯРЕН</div>
+                                        <div>
+                                            <div className="text-xs font-bold text-amber-200">Пакет „Мистик"</div>
+                                            <div className="text-[10px] text-purple-300">10 Гледания (Кредита)</div>
+                                        </div>
+                                        <div className="bg-amber-400 text-slate-950 text-xs font-bold px-3 py-1.5 rounded-lg">€1.99</div>
+                                    </div>
+
+                                    <div className="bg-purple-950/60 border border-purple-800 p-3 rounded-xl flex justify-between items-center hover:border-amber-400 transition cursor-pointer" onClick={() => buyCredits(999)}>
+                                        <div>
+                                            <div className="text-xs font-bold text-purple-100">VIP Абонамент</div>
+                                            <div className="text-[10px] text-purple-400">Неограничен достъп</div>
+                                        </div>
+                                        <div className="bg-amber-400 text-slate-950 text-xs font-bold px-3 py-1.5 rounded-lg">€3.99/мес</div>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => { alert('Възстановяване на покупки... (свързва се с App Store / Google Play в реалното приложение)'); }}
+                                    className="w-full text-[11px] text-purple-300 hover:text-amber-300 underline mb-3"
+                                >
+                                    Възстанови покупки
+                                </button>
+
+                                <p className="text-[9px] text-center text-purple-400/70">
+                                    Плащанията се обработват сигурно чрез App Store / Google Play (In-App Purchase). Абонаментът се подновява автоматично, докато не бъде отказан.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<TarotApp />);
+    </script>
+</body>
+</html>
