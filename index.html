@@ -371,16 +371,32 @@
                 }).join("\n");
 
                 try {
-                    const res = await fetch(WORKER_URL, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ question: userQ, type, cards }),
-                    });
-                    if (!res.ok) throw new Error("HTTP " + res.status);
-                    const data = await res.json();
-                    if (!data.reading) throw new Error("Няма разчитане");
-                    setAiReading(data.reading);
-                } catch (err) {
+    let data = null, lastErr = null;
+    for (let opit = 1; opit <= 3; opit++) {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 60000);
+        try {
+            const res = await fetch(WORKER_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question: userQ, type, cards }),
+                signal: ctrl.signal
+            });
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            const j = await res.json();
+            if (!j.reading) throw new Error("Няма разчитане");
+            data = j;
+            break;
+        } catch (e) {
+            lastErr = e;
+            if (opit < 3) await new Promise(r => setTimeout(r, opit * 2000));
+        } finally {
+            clearTimeout(t);
+        }
+    }
+    if (!data) throw lastErr;
+    setAiReading(data.reading);
+} catch (err) {
                     console.error("AI грешка:", err);
                     setAiError("Връзката с гадателя се разсея за момент. Опитайте отново — кредитът ви е върнат.");
                     setCredits(prev => prev + 1);
@@ -537,9 +553,7 @@
                                 </div>
 
                                 {aiReading.intro && (
-                                    <p className="text-xs text-purple-200 leading-relaxed italic mb-4">
-                                        "{aiReading.intro}"
-                                    </p>
+                                   <p className="text-xs text-purple-200 leading-relaxed italic mb-4" dangerouslySetInnerHTML={{ __html: '"' + (aiReading.intro||'').replace(/\*\*(.*?)\*\*/g, '<strong class="text-amber-200">$1</strong>') + '"' }}></p>
                                 )}
 
                                 {aiReading.cardsDetail && (
@@ -547,7 +561,7 @@
                                         {aiReading.cardsDetail.map((item, index) => (
                                             <div key={index} className="bg-purple-900/30 p-2.5 rounded-lg border border-purple-800/40 text-xs">
                                                 <span className="font-semibold text-amber-300">{item.pos}: {item.name}</span>
-                                                <p className="text-purple-200/90 mt-1">{item.text}</p>
+                                                <p className="text-purple-200/90 mt-1" dangerouslySetInnerHTML={{ __html: (item.text||'').replace(/\*\*(.*?)\*\*/g, '<strong class="text-amber-200">$1</strong>') }}></p>
                                             </div>
                                         ))}
                                     </div>
@@ -563,7 +577,7 @@
                                 {aiReading.advice && (
                                     <div className="bg-amber-400/10 border-l-2 border-amber-400 p-3 rounded-r-lg">
                                         <h4 className="font-cinzel text-xs font-bold text-amber-300 uppercase mb-0.5">Ключов Съвет</h4>
-                                        <p className="text-xs text-amber-100 italic">{aiReading.advice}</p>
+                                        <p className="text-xs text-amber-100 italic" dangerouslySetInnerHTML={{ __html: (aiReading.advice||'').replace(/\*\*(.*?)\*\*/g, '<strong class="text-amber-200">$1</strong>') }}></p>
                                     </div>
                                 )}
                             </div>
