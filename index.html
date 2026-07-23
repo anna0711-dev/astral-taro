@@ -71,8 +71,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState } = React;
-
+const { useState, useEffect } = React;
         // === ПЪЛНО ТЕСТЕ: 78 карти (22 Голяма Аркана + 56 Малка Аркана) ===
         const MAJOR_ARCANA = [
             { name: "Глупакът", symbol: "✨", meaning: "Ново начало, спонтанност, вяра в съдбата, свободен дух." },
@@ -299,7 +298,14 @@
         const WORKER_URL = "https://astral-taro.astral-taro.workers.dev";
 
         function TarotApp() {
-            const [credits, setCredits] = useState(3);
+            const [credits, setCredits] = useState(() => {
+    try {
+        const s = localStorage.getItem("astral_credits");
+        if (s === null) return 3;
+        const n = parseInt(s, 10);
+        return isNaN(n) ? 3 : Math.max(0, n);
+    } catch (e) { return 3; }
+});
             const [question, setQuestion] = useState("");
             const [readingType, setReadingType] = useState("3_cards");
             const [drawnCards, setDrawnCards] = useState([]);
@@ -309,6 +315,9 @@
             const [aiError, setAiError] = useState(null);
             const [aiReading, setAiReading] = useState(null);
             const [showPricingModal, setShowPricingModal] = useState(false);
+            useEffect(() => {
+                try { localStorage.setItem("astral_credits", String(credits)); } catch (e) {}
+            }, [credits]);
 
             const handleDrawCards = () => {
                 if (!question.trim()) {
@@ -588,8 +597,8 @@
                     <div className="text-center mt-6 pt-4 border-t border-purple-950 text-[10px] text-purple-400/60">
                         <p>Приложението и неговите генерирани отговори са предназначени единствено за развлекателни и информационни цели. Приложението не предоставя медицински, правни, финансови или психотерапевтични съвети.</p>
                         <div className="mt-2 space-x-3">
-                            <a href="#" className="underline hover:text-amber-400/80">Политика за поверителност</a>
-                            <a href="#" className="underline hover:text-amber-400/80">Условия за ползване</a>
+                            <a href="privacy.html" className="underline hover:text-amber-400/80">Политика за поверителност</a>
+                            <a href="terms.html" className="underline hover:text-amber-400/80">Условия за ползване</a>
                         </div>
                     </div>
 
