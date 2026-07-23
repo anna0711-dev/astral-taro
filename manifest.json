@@ -1,7 +1,7 @@
 {
   "id": "/astral-taro/",
   "name": "Астрал Таро",
-  "short_name": "Таро",
+  "short_name": "Астрал Таро",
   "description": "AI Таро разчитане със 78 карти и Claude API",
   "lang": "bg",
   "dir": "ltr",
@@ -10,7 +10,7 @@
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#4a0080",
-  "theme_color": "#d4af37",
+  "theme_color": "#0d0714",
   "categories": ["lifestyle", "entertainment"],
   "icons": [
     {
